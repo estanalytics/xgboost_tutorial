@@ -1,0 +1,149 @@
+---
+title: "Training XGBoost models in R language"
+author: "Tauno Metsalu"
+date: "29.05.2020"
+output:
+  html_document
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+Sys.setlocale("LC_ALL", "English")
+```
+
+[XGBoost](https://xgboost.ai/) is a popular machine learning algorithm that can be used in a variety of situations, for regression as well as classification. It gained popularity after its usage in a winning Kaggle challenge, and is implemented in both R and Python. In this blog post, we go through its basic functionality by training XGBoost models in R.
+
+## Training a model with continuous features
+
+We will use an example dataset about 392 cars. For the purpose of this blog post, we will remove the name column, since this is not numeric and will not be used for model training.
+
+```{r}
+df = read.csv("https://vincentarelbundock.github.io/Rdatasets/csv/ISLR/Auto.csv", row.names = 1)
+df = df[, colnames(df) != "name"]
+summary(df)
+```
+
+We will first train a model, assuming that all variables are numeric. XGBoost requires a xgb.DMatrix object for training. The package does not support creating this matrix directly from our data frame.
+
+```{r error=TRUE}
+library(xgboost)
+mat = xgb.DMatrix(data = df, label = df$mpg)
+```
+
+Instead, we need to create a model matrix first, and then convert it to xgb.DMatrix.
+
+```{r}
+mm = model.matrix(mpg ~ ., data = df)
+mat = xgb.DMatrix(data = mm, label = df$mpg)
+mat
+```
+
+There are multiple functions that can be used for training an XGBoost model: xgb.train provides an advanced interface, whereas xgboost is a simpler wrapper for xgb.train. We will use the third function: xgb.cv. This trains the model using cross validation, meaning that we can see how the model performs on unseen data.
+
+```{r}
+model = xgb.cv(data = mat, nrounds = 20, nfold = 10)
+model
+```
+
+The table shows Root Mean Square Error (RMSE) and its standard deviation on both train and test data. We can see that RMSE on test data does not improve any more during last iteration, so we do not need to train further.
+
+Finally, we can compare the predictions on the original dataset, just to get an intuition. We train the model once more without cross-validation using the full dataset.
+
+```{r}
+model = xgboost(data = mat, nrounds = 20)
+model
+```
+
+And look at the errors on training data.
+
+```{r}
+pr = predict(model, newdata = mat)
+head(data.frame(original = df$mpg, predicted = pr, error = pr - df$mpg))
+```
+
+
+## Training a model with continuous and categorical features
+
+When further inspecting the example dataset, we see that the origin is actually a coded variable: 1 refers to United States, 2 to Europe and 3 to Japan. There is no natural ordering between these categories and it is correct to one-hot-encode this variable instead of considering it continuous. In addition, we could make cylinders and year categorical as well. In R, this is done by converting these variables to a factor.
+
+```{r}
+df2 = df
+df2$cylinders = as.factor(df2$cylinders)
+df2$year = as.factor(df2$year)
+df2$origin = as.factor(df2$origin)
+summary(df2)
+```
+
+We again create a model matrix, but since one-hot-encoding introduces a lot of zeros in the matrix, we convert it to sparse storage type. This is not that important for this small dataset, but may give a considerable performance benefit with larger datasets.
+
+```{r}
+library(Matrix)
+mm2 = sparse.model.matrix(mpg ~ ., data = df2)
+mat2 = xgb.DMatrix(data = mm2, label = df2$mpg)
+mat2
+colnames(mat2)
+```
+
+We see that there are more features now, compared to the previous setting when we considered all variables as continuous. Also, notice that R automatically removes the first level from each variable during one-hot-encoding. This is needed because keeping all levels would cause collinearity and it is a good practice to avoid it, no matter which model type you are using for training.
+
+```{r}
+model2 = xgb.cv(data = mat2, nrounds = 20, nfold = 10)
+model2
+```
+
+## Training a model with missing values
+
+Most real-world datasets contain some missing values, due to imperfect measurement and other reasons. XGBoost is able to cope with unknown values automatically, but we need some special steps during data preparation.
+
+For demonstration, we manually introduce some missing values to our dataset.
+
+```{r}
+df3 = df2
+vars = setdiff(colnames(df3), "mpg")
+for(var in vars){
+  s = sample(nrow(df3), size = floor(nrow(df3) / 4))
+  df3[s, var] = NA
+}
+summary(df3)
+```
+
+If we try to create an xgb.DMatrix object like before, we get an error.
+
+```{r error=TRUE}
+mm3 = sparse.model.matrix(mpg ~ ., data = df3)
+mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)
+```
+
+This is because by default, rows containing any NAs are omitted when using the function sparse.model.matrix. To overcome this, we could try using model.frame which has a parameter for changing default na.action.
+
+```{r}
+mf = model.frame(mpg ~ ., data = df3, na.action = na.pass)
+mm3 = sparse.model.matrix(mf, data = mf)
+mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)
+```
+
+But now there is another problem. We notice that for factor variables, missing values are not converted correctly.
+
+```{r}
+mm3[which(is.na(df3$cylinders))[1], ]
+```
+All cylinders coefficients should be NA, but they are converted to 0 and this means that a missing cylinders value is effectively behaving like cylinders = 3 (the first level).
+
+We can solve it by using function model.matrix instead of sparse.model.matrix, and then converting it to sparse format using Matrix function.
+
+```{r}
+mf = model.frame(mpg ~ ., data = df3, na.action = na.pass)
+mm3 = Matrix(model.matrix(mf, data = mf), sparse = TRUE)
+mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)
+mm3[which(is.na(df3$cylinders))[1], ]
+```
+The coefficients for cylinders are now all NAs as expected. The model training part is similar like before.
+
+```{r}
+model3 = xgb.cv(data = mat3, nrounds = 20, nfold = 10)
+model3
+```
+
+```{r}
+sessionInfo()
+```
