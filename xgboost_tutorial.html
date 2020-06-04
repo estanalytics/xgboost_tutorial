@@ -364,7 +364,7 @@ summary {
 
 <h1 class="title toc-ignore">Training XGBoost models in R language</h1>
 <h4 class="author">Tauno Metsalu</h4>
-<h4 class="date">29.05.2020</h4>
+<h4 class="date">04.06.2020</h4>
 
 </div>
 
@@ -390,66 +390,44 @@ summary(df)</code></pre>
  Mean   :15.54   Mean   :75.98   Mean   :1.577  
  3rd Qu.:17.02   3rd Qu.:79.00   3rd Qu.:2.000  
  Max.   :24.80   Max.   :82.00   Max.   :3.000  </code></pre>
-<p>We will first train a model, assuming that all variables are numeric. XGBoost requires a xgb.DMatrix object for training. The package does not support creating this matrix directly from our data frame.</p>
+<p>We will first train a model, assuming that all variables are numeric. XGBoost requires an xgb.DMatrix object for training. The package does not support creating this matrix directly from our data frame.</p>
 <pre class="r"><code>library(xgboost)
 mat = xgb.DMatrix(data = df, label = df$mpg)</code></pre>
 <pre><code>Error in xgb.DMatrix(data = df, label = df$mpg): xgb.DMatrix does not support construction from list</code></pre>
-<p>Instead, we need to create a model matrix first, and then convert it to xgb.DMatrix.</p>
-<pre class="r"><code>mm = model.matrix(mpg ~ ., data = df)
+<p>Instead, we need to create a model matrix first, and then convert it to xgb.DMatrix. Note that we remove the intercept my specifying “-1” in the formula. Interept would add a constant variable for model training and this would not be used by XGBoost anyway, so it is unnecessary (but would also do no harm).</p>
+<pre class="r"><code>mm = model.matrix(mpg ~ . - 1, data = df)
 mat = xgb.DMatrix(data = mm, label = df$mpg)
 mat</code></pre>
-<pre><code>xgb.DMatrix  dim: 392 x 8  info: label  colnames: yes</code></pre>
-<p>There are multiple functions that can be used for training an XGBoost model: xgb.train provides an advanced interface, whereas xgboost is a simpler wrapper for xgb.train. We will use the third function: xgb.cv. This trains the model using cross validation, meaning that we can see how the model performs on unseen data.</p>
-<pre class="r"><code>model = xgb.cv(data = mat, nrounds = 20, nfold = 10)</code></pre>
-<pre><code>[1] train-rmse:17.261383+0.085728   test-rmse:17.338363+0.831726 
-[2] train-rmse:12.362611+0.058572   test-rmse:12.429473+0.611426 
-[3] train-rmse:8.939957+0.037631    test-rmse:9.035200+0.521206 
-[4] train-rmse:6.563971+0.028000    test-rmse:6.745010+0.500122 
-[5] train-rmse:4.917505+0.026512    test-rmse:5.189588+0.536587 
-[6] train-rmse:3.770257+0.027064    test-rmse:4.213430+0.589186 
-[7] train-rmse:2.954340+0.036364    test-rmse:3.654103+0.615395 
-[8] train-rmse:2.380816+0.045930    test-rmse:3.291039+0.634101 
-[9] train-rmse:1.975605+0.054424    test-rmse:3.075702+0.649075 
-[10]    train-rmse:1.687603+0.059827    test-rmse:2.947405+0.643109 
-[11]    train-rmse:1.463130+0.056090    test-rmse:2.884367+0.626922 
-[12]    train-rmse:1.300505+0.051981    test-rmse:2.813187+0.614747 
-[13]    train-rmse:1.183007+0.049937    test-rmse:2.813026+0.599580 
-[14]    train-rmse:1.083899+0.050642    test-rmse:2.812030+0.602406 
-[15]    train-rmse:1.009343+0.051361    test-rmse:2.804917+0.585080 
-[16]    train-rmse:0.941016+0.039451    test-rmse:2.814938+0.578369 
-[17]    train-rmse:0.894305+0.041463    test-rmse:2.804677+0.583502 
-[18]    train-rmse:0.848054+0.035966    test-rmse:2.798699+0.585748 
-[19]    train-rmse:0.806929+0.036840    test-rmse:2.804023+0.576820 
-[20]    train-rmse:0.772720+0.037271    test-rmse:2.801229+0.569608 </code></pre>
-<pre class="r"><code>model</code></pre>
-<pre><code>##### xgb.cv 10-folds
- iter train_rmse_mean train_rmse_std test_rmse_mean test_rmse_std
-    1      17.2613831     0.08572765      17.338363     0.8317255
-    2      12.3626111     0.05857220      12.429473     0.6114260
-    3       8.9399569     0.03763132       9.035200     0.5212064
-    4       6.5639708     0.02799952       6.745010     0.5001219
-    5       4.9175052     0.02651190       5.189588     0.5365869
-    6       3.7702568     0.02706366       4.213430     0.5891855
-    7       2.9543398     0.03636382       3.654103     0.6153955
-    8       2.3808161     0.04592984       3.291039     0.6341015
-    9       1.9756050     0.05442358       3.075702     0.6490749
-   10       1.6876032     0.05982711       2.947405     0.6431091
-   11       1.4631298     0.05609040       2.884367     0.6269221
-   12       1.3005046     0.05198053       2.813187     0.6147471
-   13       1.1830074     0.04993723       2.813026     0.5995805
-   14       1.0838992     0.05064208       2.812030     0.6024055
-   15       1.0093434     0.05136097       2.804917     0.5850800
-   16       0.9410160     0.03945130       2.814938     0.5783688
-   17       0.8943055     0.04146329       2.804677     0.5835022
-   18       0.8480540     0.03596613       2.798699     0.5857480
-   19       0.8069290     0.03683993       2.804023     0.5768200
-   20       0.7727204     0.03727117       2.801229     0.5696084</code></pre>
-<p>The table shows Root Mean Square Error (RMSE) and its standard deviation on both train and test data. We can see that RMSE on test data does not improve any more during last iteration, so we do not need to train further.</p>
+<pre><code>xgb.DMatrix  dim: 392 x 7  info: label  colnames: yes</code></pre>
+<p>There are multiple functions that can be used for training an XGBoost model: xgb.train provides an advanced interface, whereas xgboost is a simpler wrapper for xgb.train. We will use the third function: xgb.cv. This trains the model using cross validation, meaning that we can see how the model performs on unseen data. For comparing the exact model performance with other models in this blog post, we also set the seed for the random number generator.</p>
+<pre class="r"><code>set.seed(1234)
+model = xgb.cv(data = mat, nrounds = 20, nfold = 10)</code></pre>
+<pre><code>[1] train-rmse:17.258685+0.067965   test-rmse:17.312868+0.771745 
+[2] train-rmse:12.364562+0.047721   test-rmse:12.451517+0.690558 
+[3] train-rmse:8.938818+0.034563    test-rmse:9.046209+0.653561 
+[4] train-rmse:6.562425+0.027771    test-rmse:6.752577+0.636166 
+[5] train-rmse:4.917745+0.024530    test-rmse:5.240309+0.621111 
+[6] train-rmse:3.773701+0.030847    test-rmse:4.272661+0.568985 
+[7] train-rmse:2.957490+0.025769    test-rmse:3.687902+0.510359 
+[8] train-rmse:2.385498+0.029178    test-rmse:3.351272+0.479805 
+[9] train-rmse:1.974297+0.040199    test-rmse:3.122832+0.442569 
+[10]    train-rmse:1.679066+0.048552    test-rmse:2.990127+0.445628 
+[11]    train-rmse:1.461709+0.047049    test-rmse:2.912958+0.434094 
+[12]    train-rmse:1.303382+0.054202    test-rmse:2.882390+0.413163 
+[13]    train-rmse:1.190168+0.053105    test-rmse:2.855222+0.433828 
+[14]    train-rmse:1.100438+0.058246    test-rmse:2.824331+0.421037 
+[15]    train-rmse:1.038695+0.061299    test-rmse:2.821218+0.422326 
+[16]    train-rmse:0.975946+0.054799    test-rmse:2.808908+0.440885 
+[17]    train-rmse:0.920892+0.056081    test-rmse:2.807365+0.449548 
+[18]    train-rmse:0.876522+0.053224    test-rmse:2.809449+0.459858 
+[19]    train-rmse:0.833380+0.057117    test-rmse:2.804907+0.457467 
+[20]    train-rmse:0.797443+0.062401    test-rmse:2.801298+0.462784 </code></pre>
+<p>The table shows Root Mean Square Error (RMSE) and its standard deviation on both train and test data. We can see that RMSE on test data does not improve any more during last iterations, so we do not need to train further.</p>
 <p>Finally, we can compare the predictions on the original dataset, just to get an intuition. We train the model once more without cross-validation using the full dataset.</p>
 <pre class="r"><code>model = xgboost(data = mat, nrounds = 20)</code></pre>
 <pre><code>[1] train-rmse:17.251419 
 [2] train-rmse:12.343663 
-[3] train-rmse:8.916521 
+[3] train-rmse:8.916522 
 [4] train-rmse:6.547412 
 [5] train-rmse:4.910916 
 [6] train-rmse:3.763550 
@@ -467,33 +445,7 @@ mat</code></pre>
 [18]    train-rmse:0.885220 
 [19]    train-rmse:0.860907 
 [20]    train-rmse:0.829930 </code></pre>
-<pre class="r"><code>model</code></pre>
-<pre><code>##### xgb.Booster
-raw: 45.2 Kb 
-call:
-  xgb.train(params = params, data = dtrain, nrounds = nrounds, 
-    watchlist = watchlist, verbose = verbose, print_every_n = print_every_n, 
-    early_stopping_rounds = early_stopping_rounds, maximize = maximize, 
-    save_period = save_period, save_name = save_name, xgb_model = xgb_model, 
-    callbacks = callbacks)
-params (as set within xgb.train):
-  silent = &quot;1&quot;
-xgb.attributes:
-  niter
-callbacks:
-  cb.print.evaluation(period = print_every_n)
-  cb.evaluation.log()
-# of features: 8 
-niter: 20
-nfeatures : 8 
-evaluation_log:
-    iter train_rmse
-       1  17.251419
-       2  12.343663
----                
-      19   0.860907
-      20   0.829930</code></pre>
-<p>And look at the errors on training data.</p>
+<p>And we can look at the errors on training data.</p>
 <pre class="r"><code>pr = predict(model, newdata = mat)
 head(data.frame(original = df$mpg, predicted = pr, error = pr - df$mpg))</code></pre>
 <pre><code>  original predicted      error
@@ -506,7 +458,7 @@ head(data.frame(original = df$mpg, predicted = pr, error = pr - df$mpg))</code><
 </div>
 <div id="training-a-model-with-continuous-and-categorical-features" class="section level2">
 <h2>Training a model with continuous and categorical features</h2>
-<p>When further inspecting the example dataset, we see that the origin is actually a coded variable: 1 refers to United States, 2 to Europe and 3 to Japan. There is no natural ordering between these categories and it is correct to one-hot-encode this variable instead of considering it continuous. In addition, we could make cylinders and year categorical as well. In R, this is done by converting these variables to a factor.</p>
+<p>When further inspecting the example dataset, we see that the origin is actually a coded variable: 1 refers to United States, 2 to Europe and 3 to Japan. In addition, cylinders and year are discrete variables. For the next examples, we will consider these three variables as categorical.</p>
 <pre class="r"><code>df2 = df
 df2$cylinders = as.factor(df2$cylinders)
 df2$year = as.factor(df2$year)
@@ -528,67 +480,165 @@ summary(df2)</code></pre>
  3rd Qu.:17.02   82     : 30          
  Max.   :24.80   70     : 29          
                  (Other):193          </code></pre>
-<p>We again create a model matrix, but since one-hot-encoding introduces a lot of zeros in the matrix, we convert it to sparse storage type. This is not that important for this small dataset, but may give a considerable performance benefit with larger datasets.</p>
+<p>The xgboost package only supports numeric variables as input. This means that we need to encode categorical variables first before feeding them to the training algorithm. Different encoding methods have been developed. We will try three different methods: numeric, binary and one-hot encoding.</p>
+<div id="numeric-encoding" class="section level3">
+<h3>Numeric encoding</h3>
+<p>Numeric encoding assigns a sequential number to each category level. In R, this can be done by keeping factor level integers only, i.e. removing factor labels.</p>
+<pre class="r"><code>df2a = df2
+df2a$cylinders = as.numeric(df2a$cylinders)
+df2a$year = as.numeric(df2a$year)
+df2a$origin = as.numeric(df2a$origin)</code></pre>
+<p>This may seem counter-intuitive: why should the model perform well if we just put the levels into arbitrary order? The intuition lies in the strength of tree-based models: with just two splits in the tree, the model can identify any specific category level. For example, conditions “origin &gt;= 2” and “origin &lt; 3” uniquely determine European car companies (“origin = 2”).</p>
+<p>After converting the categorical variables, the fitting procedure is exactly the same as before. And with the same random number generator seed, even the results match perfectly.</p>
+<pre class="r"><code>mm2a = model.matrix(mpg ~ . - 1, data = df2a)
+mat2a = xgb.DMatrix(data = mm2a, label = df2a$mpg)
+set.seed(1234)
+model2a = xgb.cv(data = mat2a, nrounds = 20, nfold = 10)</code></pre>
+<pre><code>[1] train-rmse:17.258685+0.067965   test-rmse:17.312868+0.771745 
+[2] train-rmse:12.364562+0.047721   test-rmse:12.451518+0.690558 
+[3] train-rmse:8.938818+0.034563    test-rmse:9.046209+0.653561 
+[4] train-rmse:6.562425+0.027771    test-rmse:6.752577+0.636166 
+[5] train-rmse:4.917745+0.024530    test-rmse:5.240309+0.621111 
+[6] train-rmse:3.773701+0.030847    test-rmse:4.272661+0.568985 
+[7] train-rmse:2.957490+0.025769    test-rmse:3.687901+0.510359 
+[8] train-rmse:2.385498+0.029178    test-rmse:3.351272+0.479805 
+[9] train-rmse:1.974297+0.040199    test-rmse:3.122832+0.442569 
+[10]    train-rmse:1.679066+0.048552    test-rmse:2.990127+0.445628 
+[11]    train-rmse:1.461709+0.047049    test-rmse:2.912958+0.434094 
+[12]    train-rmse:1.303382+0.054202    test-rmse:2.882390+0.413163 
+[13]    train-rmse:1.190168+0.053105    test-rmse:2.855222+0.433828 
+[14]    train-rmse:1.100438+0.058246    test-rmse:2.824331+0.421037 
+[15]    train-rmse:1.038695+0.061299    test-rmse:2.821218+0.422326 
+[16]    train-rmse:0.975946+0.054799    test-rmse:2.808908+0.440885 
+[17]    train-rmse:0.920892+0.056081    test-rmse:2.807365+0.449548 
+[18]    train-rmse:0.876522+0.053224    test-rmse:2.809449+0.459858 
+[19]    train-rmse:0.833380+0.057117    test-rmse:2.804907+0.457467 
+[20]    train-rmse:0.797443+0.062401    test-rmse:2.801298+0.462784 </code></pre>
+</div>
+<div id="binary-encoding" class="section level3">
+<h3>Binary encoding</h3>
+<p>When using binary encoding, we take one step further from numeric encoding. We convert the number to binary representation, so that each binary digit will be one boolean variable. There is an R base function intToBits for this, but we need to take few more steps to wrap it to our use case: add column names, remove unnecessary bits, and replace the original column in the data frame.</p>
+<pre class="r"><code>num2binary = function(d, var){
+  m = t(sapply(d[, var], function(x) as.integer(intToBits(x))))
+  colnames(m) = paste0(var, 2 ** (0:31))
+  varsNeeded = ceiling(log2(max(d[, var] + 1)))
+  converted = as.data.frame(m[, 1:varsNeeded, drop = FALSE])
+  data.frame(d[, -which(colnames(d) == var), drop = FALSE], converted)
+}
+
+df2b = df2a
+df2b = num2binary(df2b, &quot;cylinders&quot;)
+df2b = num2binary(df2b, &quot;year&quot;)
+df2b = num2binary(df2b, &quot;origin&quot;)
+summary(df2b)</code></pre>
+<pre><code>      mpg         displacement     horsepower        weight      acceleration  
+ Min.   : 9.00   Min.   : 68.0   Min.   : 46.0   Min.   :1613   Min.   : 8.00  
+ 1st Qu.:17.00   1st Qu.:105.0   1st Qu.: 75.0   1st Qu.:2225   1st Qu.:13.78  
+ Median :22.75   Median :151.0   Median : 93.5   Median :2804   Median :15.50  
+ Mean   :23.45   Mean   :194.4   Mean   :104.5   Mean   :2978   Mean   :15.54  
+ 3rd Qu.:29.00   3rd Qu.:275.8   3rd Qu.:126.0   3rd Qu.:3615   3rd Qu.:17.02  
+ Max.   :46.60   Max.   :455.0   Max.   :230.0   Max.   :5140   Max.   :24.80  
+   cylinders1       cylinders2       cylinders4         year1       
+ Min.   :0.0000   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000  
+ 1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000  
+ Median :0.0000   Median :1.0000   Median :0.0000   Median :1.0000  
+ Mean   :0.2806   Mean   :0.5153   Mean   :0.4745   Mean   :0.5357  
+ 3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:1.0000  
+ Max.   :1.0000   Max.   :1.0000   Max.   :1.0000   Max.   :1.0000  
+     year2            year4            year8           origin1      
+ Min.   :0.0000   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000  
+ 1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:1.0000  
+ Median :0.0000   Median :0.0000   Median :0.0000   Median :1.0000  
+ Mean   :0.4464   Mean   :0.4796   Mean   :0.4541   Mean   :0.8265  
+ 3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:1.0000  
+ Max.   :1.0000   Max.   :1.0000   Max.   :1.0000   Max.   :1.0000  
+    origin2     
+ Min.   :0.000  
+ 1st Qu.:0.000  
+ Median :0.000  
+ Mean   :0.375  
+ 3rd Qu.:1.000  
+ Max.   :1.000  </code></pre>
+<p>We train the model similarly.</p>
+<pre class="r"><code>mm2b = model.matrix(mpg ~ . - 1, data = df2b)
+mat2b = xgb.DMatrix(data = mm2b, label = df2b$mpg)
+set.seed(1234)
+model2b = xgb.cv(data = mat2b, nrounds = 20, nfold = 10)</code></pre>
+<pre><code>[1] train-rmse:17.269845+0.064330   test-rmse:17.275271+0.718852 
+[2] train-rmse:12.384375+0.049057   test-rmse:12.458473+0.685917 
+[3] train-rmse:8.977683+0.037094    test-rmse:9.100570+0.652570 
+[4] train-rmse:6.624433+0.029517    test-rmse:6.847209+0.647674 
+[5] train-rmse:4.984804+0.026734    test-rmse:5.329661+0.641351 
+[6] train-rmse:3.842353+0.024640    test-rmse:4.352961+0.619487 
+[7] train-rmse:3.034310+0.038276    test-rmse:3.762825+0.613480 
+[8] train-rmse:2.443209+0.040845    test-rmse:3.419330+0.596875 
+[9] train-rmse:2.017815+0.045584    test-rmse:3.213843+0.559094 
+[10]    train-rmse:1.713752+0.042535    test-rmse:3.073187+0.556036 
+[11]    train-rmse:1.501971+0.052748    test-rmse:2.991492+0.536553 
+[12]    train-rmse:1.331252+0.041526    test-rmse:2.919974+0.530534 
+[13]    train-rmse:1.201758+0.043917    test-rmse:2.896149+0.526219 
+[14]    train-rmse:1.098341+0.046080    test-rmse:2.864043+0.513367 
+[15]    train-rmse:1.022477+0.044560    test-rmse:2.859906+0.492180 
+[16]    train-rmse:0.947741+0.047382    test-rmse:2.845661+0.484691 
+[17]    train-rmse:0.874223+0.036473    test-rmse:2.843221+0.472726 
+[18]    train-rmse:0.815077+0.039649    test-rmse:2.846749+0.459813 
+[19]    train-rmse:0.769567+0.036527    test-rmse:2.835582+0.461134 
+[20]    train-rmse:0.731658+0.035929    test-rmse:2.832136+0.461781 </code></pre>
+</div>
+<div id="one-hot-encoding" class="section level3">
+<h3>One-hot encoding</h3>
+<p>One-hot encoding means that each factor level is converted to a new indicator variable. We start by again creating a model matrix, but since one-hot-encoding introduces a lot of zeros in the matrix, we convert it to sparse storage type. This is not that important for this small dataset, but may give a considerable performance benefit with larger datasets.</p>
 <pre class="r"><code>library(Matrix)
-mm2 = sparse.model.matrix(mpg ~ ., data = df2)
-mat2 = xgb.DMatrix(data = mm2, label = df2$mpg)
-mat2</code></pre>
+mm2c = sparse.model.matrix(mpg ~ . - 1, data = df2)
+mat2c = xgb.DMatrix(data = mm2c, label = df2$mpg)
+mat2c</code></pre>
 <pre><code>xgb.DMatrix  dim: 392 x 23  info: label  colnames: yes</code></pre>
-<pre class="r"><code>colnames(mat2)</code></pre>
-<pre><code> [1] &quot;(Intercept)&quot;  &quot;cylinders4&quot;   &quot;cylinders5&quot;   &quot;cylinders6&quot;   &quot;cylinders8&quot;  
+<pre class="r"><code>colnames(mat2c)</code></pre>
+<pre><code> [1] &quot;cylinders3&quot;   &quot;cylinders4&quot;   &quot;cylinders5&quot;   &quot;cylinders6&quot;   &quot;cylinders8&quot;  
  [6] &quot;displacement&quot; &quot;horsepower&quot;   &quot;weight&quot;       &quot;acceleration&quot; &quot;year71&quot;      
 [11] &quot;year72&quot;       &quot;year73&quot;       &quot;year74&quot;       &quot;year75&quot;       &quot;year76&quot;      
 [16] &quot;year77&quot;       &quot;year78&quot;       &quot;year79&quot;       &quot;year80&quot;       &quot;year81&quot;      
 [21] &quot;year82&quot;       &quot;origin2&quot;      &quot;origin3&quot;     </code></pre>
-<p>We see that there are more features now, compared to the previous setting when we considered all variables as continuous. Also, notice that R automatically removes the first level from each variable during one-hot-encoding. This is needed because keeping all levels would cause collinearity and it is a good practice to avoid it, no matter which model type you are using for training.</p>
-<pre class="r"><code>model2 = xgb.cv(data = mat2, nrounds = 20, nfold = 10)</code></pre>
-<pre><code>[1] train-rmse:17.275996+0.078370   test-rmse:17.302576+0.793374 
-[2] train-rmse:12.443232+0.058471   test-rmse:12.488270+0.707264 
-[3] train-rmse:9.080984+0.043754    test-rmse:9.196552+0.753755 
-[4] train-rmse:6.727309+0.029472    test-rmse:6.982808+0.742035 
-[5] train-rmse:5.082861+0.025285    test-rmse:5.458698+0.763117 
-[6] train-rmse:3.931993+0.031005    test-rmse:4.467535+0.820660 
-[7] train-rmse:3.128929+0.037259    test-rmse:3.884359+0.811342 
-[8] train-rmse:2.557914+0.041530    test-rmse:3.546542+0.819470 
-[9] train-rmse:2.158629+0.047838    test-rmse:3.377737+0.802783 
-[10]    train-rmse:1.869567+0.044187    test-rmse:3.294510+0.791767 
-[11]    train-rmse:1.654877+0.042562    test-rmse:3.220417+0.770126 
-[12]    train-rmse:1.505491+0.041859    test-rmse:3.201398+0.759046 
-[13]    train-rmse:1.395226+0.036250    test-rmse:3.180586+0.744031 
-[14]    train-rmse:1.302374+0.038093    test-rmse:3.188081+0.722640 
-[15]    train-rmse:1.219786+0.039186    test-rmse:3.175985+0.704892 
-[16]    train-rmse:1.154702+0.042761    test-rmse:3.179186+0.696403 
-[17]    train-rmse:1.100755+0.038522    test-rmse:3.185684+0.697459 
-[18]    train-rmse:1.055114+0.043485    test-rmse:3.188876+0.699572 
-[19]    train-rmse:1.013412+0.043068    test-rmse:3.186086+0.696711 
-[20]    train-rmse:0.978537+0.047314    test-rmse:3.198245+0.697489 </code></pre>
-<pre class="r"><code>model2</code></pre>
-<pre><code>##### xgb.cv 10-folds
- iter train_rmse_mean train_rmse_std test_rmse_mean test_rmse_std
-    1      17.2759961     0.07836970      17.302576     0.7933742
-    2      12.4432324     0.05847101      12.488270     0.7072644
-    3       9.0809835     0.04375382       9.196552     0.7537547
-    4       6.7273093     0.02947207       6.982808     0.7420348
-    5       5.0828615     0.02528488       5.458698     0.7631170
-    6       3.9319926     0.03100488       4.467535     0.8206599
-    7       3.1289293     0.03725864       3.884359     0.8113422
-    8       2.5579138     0.04153012       3.546542     0.8194703
-    9       2.1586293     0.04783784       3.377737     0.8027830
-   10       1.8695671     0.04418727       3.294510     0.7917668
-   11       1.6548773     0.04256175       3.220417     0.7701256
-   12       1.5054909     0.04185946       3.201398     0.7590458
-   13       1.3952255     0.03624994       3.180586     0.7440309
-   14       1.3023735     0.03809277       3.188081     0.7226405
-   15       1.2197862     0.03918553       3.175985     0.7048917
-   16       1.1547025     0.04276137       3.179186     0.6964033
-   17       1.1007546     0.03852172       3.185684     0.6974586
-   18       1.0551142     0.04348485       3.188876     0.6995721
-   19       1.0134121     0.04306795       3.186086     0.6967108
-   20       0.9785366     0.04731405       3.198245     0.6974886</code></pre>
+<p>Note that when using the default formula for creating the model matrix without intercept, R adds all levels from the first categorical variable (cylinders) and removes the first level from other categorical variables (year and origin). This is required by some model types (e.g. lm, glm) to avoid collinearity. But tree-based models perform better if all levels are retained. Therefore, we manually add the missing levels using contrasts function.</p>
+<pre class="r"><code>contrasts = lapply(df2[, sapply(df2, is.factor), drop = FALSE], contrasts, contrasts = FALSE)
+mm2c = sparse.model.matrix(mpg ~ . - 1, data = df2, contrasts.arg = contrasts)
+mat2c = xgb.DMatrix(data = mm2c, label = df2$mpg)
+mat2c</code></pre>
+<pre><code>xgb.DMatrix  dim: 392 x 25  info: label  colnames: yes</code></pre>
+<pre class="r"><code>colnames(mat2c)</code></pre>
+<pre><code> [1] &quot;cylinders3&quot;   &quot;cylinders4&quot;   &quot;cylinders5&quot;   &quot;cylinders6&quot;   &quot;cylinders8&quot;  
+ [6] &quot;displacement&quot; &quot;horsepower&quot;   &quot;weight&quot;       &quot;acceleration&quot; &quot;year70&quot;      
+[11] &quot;year71&quot;       &quot;year72&quot;       &quot;year73&quot;       &quot;year74&quot;       &quot;year75&quot;      
+[16] &quot;year76&quot;       &quot;year77&quot;       &quot;year78&quot;       &quot;year79&quot;       &quot;year80&quot;      
+[21] &quot;year81&quot;       &quot;year82&quot;       &quot;origin1&quot;      &quot;origin2&quot;      &quot;origin3&quot;     </code></pre>
+<p>Now we have all required levels. But note that the number of features is much higher compared to numeric or binary encoding, and it gets more extreme if we have even more factor levels. On each split, we can only make a decision (0 or 1) on one specific factor level and the depth of the tree is limited. This is hindering the performance of tree-based methods when using one-hot-encoding.</p>
+<pre class="r"><code>set.seed(1234)
+model2c = xgb.cv(data = mat2c, nrounds = 20, nfold = 10)</code></pre>
+<pre><code>[1] train-rmse:17.278048+0.066891   test-rmse:17.279999+0.809984 
+[2] train-rmse:12.445229+0.047578   test-rmse:12.434403+0.742800 
+[3] train-rmse:9.083367+0.041231    test-rmse:9.112971+0.739142 
+[4] train-rmse:6.726100+0.029661    test-rmse:6.899383+0.717697 
+[5] train-rmse:5.079276+0.024115    test-rmse:5.422966+0.713064 
+[6] train-rmse:3.930832+0.023442    test-rmse:4.365127+0.658787 
+[7] train-rmse:3.129991+0.030010    test-rmse:3.789455+0.610030 
+[8] train-rmse:2.573116+0.041009    test-rmse:3.415758+0.588467 
+[9] train-rmse:2.169798+0.046299    test-rmse:3.233334+0.552514 
+[10]    train-rmse:1.875567+0.047357    test-rmse:3.112960+0.514141 
+[11]    train-rmse:1.671686+0.048774    test-rmse:3.043218+0.490759 
+[12]    train-rmse:1.520306+0.049711    test-rmse:2.998823+0.452709 
+[13]    train-rmse:1.404912+0.046503    test-rmse:2.987134+0.440963 
+[14]    train-rmse:1.317870+0.043840    test-rmse:2.963442+0.437401 
+[15]    train-rmse:1.237723+0.049114    test-rmse:2.955607+0.448397 
+[16]    train-rmse:1.168100+0.044052    test-rmse:2.956798+0.456226 
+[17]    train-rmse:1.112550+0.049692    test-rmse:2.958594+0.457427 
+[18]    train-rmse:1.064478+0.046157    test-rmse:2.963016+0.460401 
+[19]    train-rmse:1.024956+0.043565    test-rmse:2.956738+0.462216 
+[20]    train-rmse:0.983981+0.040806    test-rmse:2.953318+0.458008 </code></pre>
+</div>
 </div>
 <div id="training-a-model-with-missing-values" class="section level2">
 <h2>Training a model with missing values</h2>
-<p>Most real-world datasets contain some missing values, due to imperfect measurement and other reasons. XGBoost is able to cope with unknown values automatically, but we need some special steps during data preparation.</p>
+<p>Most real-world datasets contain some missing values, due to imperfect measurement and other reasons. XGBoost training algorithm is able to cope with unknown values automatically, but we need some special attention during data preparation.</p>
 <p>For demonstration, we manually introduce some missing values to our dataset.</p>
 <pre class="r"><code>df3 = df2
 vars = setdiff(colnames(df3), &quot;mpg&quot;)
@@ -598,98 +648,57 @@ for(var in vars){
 }
 summary(df3)</code></pre>
 <pre><code>      mpg        cylinders   displacement     horsepower        weight    
- Min.   : 9.00   3   :  4   Min.   : 68.0   Min.   : 46.0   Min.   :1613  
- 1st Qu.:17.00   4   :148   1st Qu.:105.5   1st Qu.: 75.0   1st Qu.:2216  
- Median :22.75   5   :  3   Median :144.5   Median : 95.0   Median :2818  
- Mean   :23.45   6   : 57   Mean   :192.6   Mean   :105.4   Mean   :2980  
- 3rd Qu.:29.00   8   : 82   3rd Qu.:265.8   3rd Qu.:130.0   3rd Qu.:3661  
+ Min.   : 9.00   3   :  3   Min.   : 70.0   Min.   : 46.0   Min.   :1613  
+ 1st Qu.:17.00   4   :149   1st Qu.:105.0   1st Qu.: 76.0   1st Qu.:2245  
+ Median :22.75   5   :  3   Median :151.0   Median : 95.0   Median :2822  
+ Mean   :23.45   6   : 58   Mean   :198.7   Mean   :104.4   Mean   :2975  
+ 3rd Qu.:29.00   8   : 81   3rd Qu.:302.0   3rd Qu.:120.0   3rd Qu.:3608  
  Max.   :46.60   NA&#39;s: 98   Max.   :455.0   Max.   :230.0   Max.   :5140  
                             NA&#39;s   :98      NA&#39;s   :98      NA&#39;s   :98    
   acceleration        year      origin   
- Min.   : 8.00   75     : 27   1   :180  
- 1st Qu.:13.72   79     : 27   2   : 56  
- Median :15.50   73     : 25   3   : 58  
- Mean   :15.47   76     : 25   NA&#39;s: 98  
- 3rd Qu.:17.00   72     : 23             
- Max.   :23.50   (Other):167             
+ Min.   : 8.00   73     : 28   1   :190  
+ 1st Qu.:13.82   78     : 28   2   : 44  
+ Median :15.50   71     : 25   3   : 60  
+ Mean   :15.57   76     : 25   NA&#39;s: 98  
+ 3rd Qu.:17.15   82     : 24             
+ Max.   :24.60   (Other):164             
  NA&#39;s   :98      NA&#39;s   : 98             </code></pre>
+<p>We make the example with numeric encoding, using other encodings is similar.</p>
+<pre class="r"><code>df3$cylinders = as.numeric(df3$cylinders)
+df3$year = as.numeric(df3$year)
+df3$origin = as.numeric(df3$origin)</code></pre>
 <p>If we try to create an xgb.DMatrix object like before, we get an error.</p>
-<pre class="r"><code>mm3 = sparse.model.matrix(mpg ~ ., data = df3)
+<pre class="r"><code>mm3 = model.matrix(mpg ~ . - 1, data = df3)
 mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)</code></pre>
 <pre><code>Error in setinfo.xgb.DMatrix(dmat, names(p), p[[1]]): The length of labels must equal to the number of rows in the input data</code></pre>
-<p>This is because by default, rows containing any NAs are omitted when using the function sparse.model.matrix. To overcome this, we could try using model.frame which has a parameter for changing default na.action.</p>
-<pre class="r"><code>mf = model.frame(mpg ~ ., data = df3, na.action = na.pass)
-mm3 = sparse.model.matrix(mf, data = mf)
+<p>This is because by default, rows containing any NAs are omitted when using the function model.matrix. To overcome this, we can use the function model.frame which has a parameter for changing the default na.action.</p>
+<pre class="r"><code>mf = model.frame(mpg ~ . - 1, data = df3, na.action = na.pass)
+mm3 = model.matrix(mf, data = mf)
 mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)</code></pre>
-<p>But now there is another problem. We notice that for factor variables, missing values are not converted correctly.</p>
-<pre class="r"><code>mm3[which(is.na(df3$cylinders))[1], ]</code></pre>
-<pre><code> (Intercept)   cylinders4   cylinders5   cylinders6   cylinders8 displacement 
-           1            0            0            0            0           NA 
-  horsepower       weight acceleration       year71       year72       year73 
-         130         3504           NA            0            0            0 
-      year74       year75       year76       year77       year78       year79 
-           0            0            0            0            0            0 
-      year80       year81       year82      origin2      origin3 
-           0            0            0            0            0 </code></pre>
-<p>All cylinders coefficients should be NA, but they are converted to 0 and this means that a missing cylinders value is effectively behaving like cylinders = 3 (the first level).</p>
-<p>We can solve it by using function model.matrix instead of sparse.model.matrix, and then converting it to sparse format using Matrix function.</p>
-<pre class="r"><code>mf = model.frame(mpg ~ ., data = df3, na.action = na.pass)
-mm3 = Matrix(model.matrix(mf, data = mf), sparse = TRUE)
-mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)
-mm3[which(is.na(df3$cylinders))[1], ]</code></pre>
-<pre><code> (Intercept)   cylinders4   cylinders5   cylinders6   cylinders8 displacement 
-           1           NA           NA           NA           NA           NA 
-  horsepower       weight acceleration       year71       year72       year73 
-         130         3504           NA           NA           NA           NA 
-      year74       year75       year76       year77       year78       year79 
-          NA           NA           NA           NA           NA           NA 
-      year80       year81       year82      origin2      origin3 
-          NA           NA           NA            0            0 </code></pre>
-<p>The coefficients for cylinders are now all NAs as expected. The model training part is similar like before.</p>
-<pre class="r"><code>model3 = xgb.cv(data = mat3, nrounds = 20, nfold = 10)</code></pre>
-<pre><code>[1] train-rmse:17.352895+0.098046   test-rmse:17.357887+0.935978 
-[2] train-rmse:12.554433+0.073225   test-rmse:12.640960+0.781376 
-[3] train-rmse:9.218377+0.052012    test-rmse:9.438223+0.759600 
-[4] train-rmse:6.910907+0.042566    test-rmse:7.326831+0.756132 
-[5] train-rmse:5.308046+0.043406    test-rmse:5.956370+0.715394 
-[6] train-rmse:4.189740+0.040818    test-rmse:5.124943+0.693172 
-[7] train-rmse:3.403918+0.046357    test-rmse:4.566159+0.673779 
-[8] train-rmse:2.844550+0.050350    test-rmse:4.248867+0.643303 
-[9] train-rmse:2.462143+0.054229    test-rmse:4.057194+0.606136 
-[10]    train-rmse:2.178415+0.048850    test-rmse:3.930281+0.605146 
-[11]    train-rmse:1.988899+0.044579    test-rmse:3.865176+0.594163 
-[12]    train-rmse:1.843509+0.057195    test-rmse:3.825351+0.570001 
-[13]    train-rmse:1.713313+0.068593    test-rmse:3.789214+0.569327 
-[14]    train-rmse:1.625480+0.078699    test-rmse:3.782597+0.559831 
-[15]    train-rmse:1.545934+0.092746    test-rmse:3.764892+0.562080 
-[16]    train-rmse:1.484706+0.096697    test-rmse:3.762160+0.556291 
-[17]    train-rmse:1.419048+0.103088    test-rmse:3.765965+0.557543 
-[18]    train-rmse:1.355608+0.105051    test-rmse:3.742659+0.568524 
-[19]    train-rmse:1.275456+0.102121    test-rmse:3.746453+0.550225 
-[20]    train-rmse:1.221470+0.083913    test-rmse:3.741534+0.541983 </code></pre>
-<pre class="r"><code>model3</code></pre>
-<pre><code>##### xgb.cv 10-folds
- iter train_rmse_mean train_rmse_std test_rmse_mean test_rmse_std
-    1       17.352895     0.09804593      17.357887     0.9359781
-    2       12.554433     0.07322464      12.640960     0.7813759
-    3        9.218377     0.05201166       9.438223     0.7595997
-    4        6.910907     0.04256559       7.326831     0.7561323
-    5        5.308046     0.04340561       5.956370     0.7153941
-    6        4.189740     0.04081811       5.124943     0.6931722
-    7        3.403918     0.04635711       4.566159     0.6737787
-    8        2.844550     0.05035019       4.248867     0.6433028
-    9        2.462143     0.05422891       4.057194     0.6061358
-   10        2.178415     0.04885037       3.930281     0.6051461
-   11        1.988899     0.04457859       3.865176     0.5941627
-   12        1.843509     0.05719513       3.825351     0.5700010
-   13        1.713313     0.06859340       3.789214     0.5693270
-   14        1.625480     0.07869865       3.782597     0.5598312
-   15        1.545934     0.09274596       3.764892     0.5620801
-   16        1.484706     0.09669697       3.762160     0.5562912
-   17        1.419048     0.10308836       3.765965     0.5575428
-   18        1.355608     0.10505122       3.742659     0.5685236
-   19        1.275456     0.10212052       3.746453     0.5502252
-   20        1.221470     0.08391338       3.741534     0.5419827</code></pre>
+<p>The modelling part is similar like before.</p>
+<pre class="r"><code>set.seed(1234)
+model3 = xgb.cv(data = mat3, nrounds = 20, nfold = 10)</code></pre>
+<pre><code>[1] train-rmse:17.327673+0.064960   test-rmse:17.345471+0.897431 
+[2] train-rmse:12.482157+0.050652   test-rmse:12.498893+0.786415 
+[3] train-rmse:9.102133+0.038874    test-rmse:9.274033+0.755718 
+[4] train-rmse:6.737899+0.033779    test-rmse:7.085904+0.677934 
+[5] train-rmse:5.080823+0.029501    test-rmse:5.658436+0.690860 
+[6] train-rmse:3.921910+0.042017    test-rmse:4.729643+0.643415 
+[7] train-rmse:3.104031+0.034263    test-rmse:4.197557+0.563888 
+[8] train-rmse:2.515566+0.033313    test-rmse:3.882724+0.546747 
+[9] train-rmse:2.098384+0.037846    test-rmse:3.711283+0.527048 
+[10]    train-rmse:1.789178+0.029230    test-rmse:3.629544+0.507175 
+[11]    train-rmse:1.569743+0.031471    test-rmse:3.568727+0.493465 
+[12]    train-rmse:1.408658+0.036209    test-rmse:3.563239+0.494028 
+[13]    train-rmse:1.283628+0.044133    test-rmse:3.569266+0.512923 
+[14]    train-rmse:1.184557+0.045606    test-rmse:3.557100+0.525825 
+[15]    train-rmse:1.096057+0.040303    test-rmse:3.552636+0.531630 
+[16]    train-rmse:1.021026+0.037646    test-rmse:3.563759+0.542686 
+[17]    train-rmse:0.951757+0.039133    test-rmse:3.563344+0.529436 
+[18]    train-rmse:0.899711+0.033114    test-rmse:3.565437+0.527313 
+[19]    train-rmse:0.856901+0.031749    test-rmse:3.570360+0.528543 
+[20]    train-rmse:0.818124+0.019139    test-rmse:3.575723+0.533277 </code></pre>
+<p>In this tutorial, we gave a short introduction how to use XGBoost models in R. We saw that categorical variables need special attention, since xgboost R package has no built-in support for them. In addition, if there are missing values in the dataset, a further na.action parameter needs to be passed.</p>
 <pre class="r"><code>sessionInfo()</code></pre>
 <pre><code>R version 4.0.0 (2020-04-24)
 Platform: x86_64-w64-mingw32/x64 (64-bit)

@@ -1,7 +1,7 @@
 ---
 title: "Training XGBoost models in R language"
 author: "Tauno Metsalu"
-date: "29.05.2020"
+date: "04.06.2020"
 output:
   html_document
 ---
@@ -23,38 +23,37 @@ df = df[, colnames(df) != "name"]
 summary(df)
 ```
 
-We will first train a model, assuming that all variables are numeric. XGBoost requires a xgb.DMatrix object for training. The package does not support creating this matrix directly from our data frame.
+We will first train a model, assuming that all variables are numeric. XGBoost requires an xgb.DMatrix object for training. The package does not support creating this matrix directly from our data frame.
 
 ```{r error=TRUE}
 library(xgboost)
 mat = xgb.DMatrix(data = df, label = df$mpg)
 ```
 
-Instead, we need to create a model matrix first, and then convert it to xgb.DMatrix.
+Instead, we need to create a model matrix first, and then convert it to xgb.DMatrix. Note that we remove the intercept my specifying "-1" in the formula. Interept would add a constant variable for model training and this would not be used by XGBoost anyway, so it is unnecessary (but would also do no harm).
 
 ```{r}
-mm = model.matrix(mpg ~ ., data = df)
+mm = model.matrix(mpg ~ . - 1, data = df)
 mat = xgb.DMatrix(data = mm, label = df$mpg)
 mat
 ```
 
-There are multiple functions that can be used for training an XGBoost model: xgb.train provides an advanced interface, whereas xgboost is a simpler wrapper for xgb.train. We will use the third function: xgb.cv. This trains the model using cross validation, meaning that we can see how the model performs on unseen data.
+There are multiple functions that can be used for training an XGBoost model: xgb.train provides an advanced interface, whereas xgboost is a simpler wrapper for xgb.train. We will use the third function: xgb.cv. This trains the model using cross validation, meaning that we can see how the model performs on unseen data. For comparing the exact model performance with other models in this blog post, we also set the seed for the random number generator.
 
 ```{r}
+set.seed(1234)
 model = xgb.cv(data = mat, nrounds = 20, nfold = 10)
-model
 ```
 
-The table shows Root Mean Square Error (RMSE) and its standard deviation on both train and test data. We can see that RMSE on test data does not improve any more during last iteration, so we do not need to train further.
+The table shows Root Mean Square Error (RMSE) and its standard deviation on both train and test data. We can see that RMSE on test data does not improve any more during last iterations, so we do not need to train further.
 
 Finally, we can compare the predictions on the original dataset, just to get an intuition. We train the model once more without cross-validation using the full dataset.
 
 ```{r}
 model = xgboost(data = mat, nrounds = 20)
-model
 ```
 
-And look at the errors on training data.
+And we can look at the errors on training data.
 
 ```{r}
 pr = predict(model, newdata = mat)
@@ -64,7 +63,7 @@ head(data.frame(original = df$mpg, predicted = pr, error = pr - df$mpg))
 
 ## Training a model with continuous and categorical features
 
-When further inspecting the example dataset, we see that the origin is actually a coded variable: 1 refers to United States, 2 to Europe and 3 to Japan. There is no natural ordering between these categories and it is correct to one-hot-encode this variable instead of considering it continuous. In addition, we could make cylinders and year categorical as well. In R, this is done by converting these variables to a factor.
+When further inspecting the example dataset, we see that the origin is actually a coded variable: 1 refers to United States, 2 to Europe and 3 to Japan. In addition, cylinders and year are discrete variables. For the next examples, we will consider these three variables as categorical.
 
 ```{r}
 df2 = df
@@ -74,26 +73,91 @@ df2$origin = as.factor(df2$origin)
 summary(df2)
 ```
 
-We again create a model matrix, but since one-hot-encoding introduces a lot of zeros in the matrix, we convert it to sparse storage type. This is not that important for this small dataset, but may give a considerable performance benefit with larger datasets.
+The xgboost package only supports numeric variables as input. This means that we need to encode categorical variables first before feeding them to the training algorithm. Different encoding methods have been developed. We will try three different methods: numeric, binary and one-hot encoding.
+
+### Numeric encoding
+
+Numeric encoding assigns a sequential number to each category level. In R, this can be done by keeping factor level integers only, i.e. removing factor labels.
+
+```{r}
+df2a = df2
+df2a$cylinders = as.numeric(df2a$cylinders)
+df2a$year = as.numeric(df2a$year)
+df2a$origin = as.numeric(df2a$origin)
+```
+
+This may seem counter-intuitive: why should the model perform well if we just put the levels into arbitrary order? The intuition lies in the strength of tree-based models: with just two splits in the tree, the model can identify any specific category level. For example, conditions "origin >= 2" and "origin < 3" uniquely determine European car companies ("origin = 2").
+
+After converting the categorical variables, the fitting procedure is exactly the same as before. And with the same random number generator seed, even the results match perfectly.
+
+```{r}
+mm2a = model.matrix(mpg ~ . - 1, data = df2a)
+mat2a = xgb.DMatrix(data = mm2a, label = df2a$mpg)
+set.seed(1234)
+model2a = xgb.cv(data = mat2a, nrounds = 20, nfold = 10)
+```
+
+### Binary encoding
+
+When using binary encoding, we take one step further from numeric encoding. We convert the number to binary representation, so that each binary digit will be one boolean variable. There is an R base function intToBits for this, but we need to take few more steps to wrap it to our use case: add column names, remove unnecessary bits, and replace the original column in the data frame.
+
+```{r}
+num2binary = function(d, var){
+  m = t(sapply(d[, var], function(x) as.integer(intToBits(x))))
+  colnames(m) = paste0(var, 2 ** (0:31))
+  varsNeeded = ceiling(log2(max(d[, var] + 1)))
+  converted = as.data.frame(m[, 1:varsNeeded, drop = FALSE])
+  data.frame(d[, -which(colnames(d) == var), drop = FALSE], converted)
+}
+
+df2b = df2a
+df2b = num2binary(df2b, "cylinders")
+df2b = num2binary(df2b, "year")
+df2b = num2binary(df2b, "origin")
+summary(df2b)
+```
+We train the model similarly.
+
+```{r}
+mm2b = model.matrix(mpg ~ . - 1, data = df2b)
+mat2b = xgb.DMatrix(data = mm2b, label = df2b$mpg)
+set.seed(1234)
+model2b = xgb.cv(data = mat2b, nrounds = 20, nfold = 10)
+```
+
+### One-hot encoding
+
+One-hot encoding means that each factor level is converted to a new indicator variable. 
+We start by again creating a model matrix, but since one-hot-encoding introduces a lot of zeros in the matrix, we convert it to sparse storage type. This is not that important for this small dataset, but may give a considerable performance benefit with larger datasets.
 
 ```{r}
 library(Matrix)
-mm2 = sparse.model.matrix(mpg ~ ., data = df2)
-mat2 = xgb.DMatrix(data = mm2, label = df2$mpg)
-mat2
-colnames(mat2)
+mm2c = sparse.model.matrix(mpg ~ . - 1, data = df2)
+mat2c = xgb.DMatrix(data = mm2c, label = df2$mpg)
+mat2c
+colnames(mat2c)
 ```
 
-We see that there are more features now, compared to the previous setting when we considered all variables as continuous. Also, notice that R automatically removes the first level from each variable during one-hot-encoding. This is needed because keeping all levels would cause collinearity and it is a good practice to avoid it, no matter which model type you are using for training.
+Note that when using the default formula for creating the model matrix without intercept, R adds all levels from the first categorical variable (cylinders) and removes the first level from other categorical variables (year and origin). This is required by some model types (e.g. lm, glm) to avoid collinearity. But tree-based models perform better if all levels are retained. Therefore, we manually add the missing levels using contrasts function.
 
 ```{r}
-model2 = xgb.cv(data = mat2, nrounds = 20, nfold = 10)
-model2
+contrasts = lapply(df2[, sapply(df2, is.factor), drop = FALSE], contrasts, contrasts = FALSE)
+mm2c = sparse.model.matrix(mpg ~ . - 1, data = df2, contrasts.arg = contrasts)
+mat2c = xgb.DMatrix(data = mm2c, label = df2$mpg)
+mat2c
+colnames(mat2c)
+```
+
+Now we have all required levels. But note that the number of features is much higher compared to numeric or binary encoding, and it gets more extreme if we have even more factor levels. On each split, we can only make a decision (0 or 1) on one specific factor level and the depth of the tree is limited. This is hindering the performance of tree-based methods when using one-hot-encoding.
+
+```{r}
+set.seed(1234)
+model2c = xgb.cv(data = mat2c, nrounds = 20, nfold = 10)
 ```
 
 ## Training a model with missing values
 
-Most real-world datasets contain some missing values, due to imperfect measurement and other reasons. XGBoost is able to cope with unknown values automatically, but we need some special steps during data preparation.
+Most real-world datasets contain some missing values, due to imperfect measurement and other reasons. XGBoost training algorithm is able to cope with unknown values automatically, but we need some special attention during data preparation.
 
 For demonstration, we manually introduce some missing values to our dataset.
 
@@ -107,42 +171,37 @@ for(var in vars){
 summary(df3)
 ```
 
+We make the example with numeric encoding, using other encodings is similar.
+
+```{r}
+df3$cylinders = as.numeric(df3$cylinders)
+df3$year = as.numeric(df3$year)
+df3$origin = as.numeric(df3$origin)
+```
+
 If we try to create an xgb.DMatrix object like before, we get an error.
 
 ```{r error=TRUE}
-mm3 = sparse.model.matrix(mpg ~ ., data = df3)
+mm3 = model.matrix(mpg ~ . - 1, data = df3)
 mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)
 ```
 
-This is because by default, rows containing any NAs are omitted when using the function sparse.model.matrix. To overcome this, we could try using model.frame which has a parameter for changing default na.action.
+This is because by default, rows containing any NAs are omitted when using the function model.matrix. To overcome this, we can use the function model.frame which has a parameter for changing the default na.action.
 
 ```{r}
-mf = model.frame(mpg ~ ., data = df3, na.action = na.pass)
-mm3 = sparse.model.matrix(mf, data = mf)
+mf = model.frame(mpg ~ . - 1, data = df3, na.action = na.pass)
+mm3 = model.matrix(mf, data = mf)
 mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)
 ```
 
-But now there is another problem. We notice that for factor variables, missing values are not converted correctly.
+The modelling part is similar like before.
 
 ```{r}
-mm3[which(is.na(df3$cylinders))[1], ]
-```
-All cylinders coefficients should be NA, but they are converted to 0 and this means that a missing cylinders value is effectively behaving like cylinders = 3 (the first level).
-
-We can solve it by using function model.matrix instead of sparse.model.matrix, and then converting it to sparse format using Matrix function.
-
-```{r}
-mf = model.frame(mpg ~ ., data = df3, na.action = na.pass)
-mm3 = Matrix(model.matrix(mf, data = mf), sparse = TRUE)
-mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)
-mm3[which(is.na(df3$cylinders))[1], ]
-```
-The coefficients for cylinders are now all NAs as expected. The model training part is similar like before.
-
-```{r}
+set.seed(1234)
 model3 = xgb.cv(data = mat3, nrounds = 20, nfold = 10)
-model3
 ```
+
+In this tutorial, we gave a short introduction how to use XGBoost models in R. We saw that categorical variables need special attention, since xgboost R package has no built-in support for them. In addition, if there are missing values in the dataset, a further na.action parameter needs to be passed.
 
 ```{r}
 sessionInfo()
