@@ -1,6 +1,6 @@
 ---
 title: "Training XGBoost models in R language"
-author: "Tauno Metsalu"
+author: "Tauno Metsalu, [EST Analytics OÜ](https://estanalytics.eu/)"
 date: "04.06.2020"
 output:
   html_document

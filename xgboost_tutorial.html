@@ -9,7 +9,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Tauno Metsalu" />
+<meta name="author" content="Tauno Metsalu, EST Analytics OÜ" />
 
 
 <title>Training XGBoost models in R language</title>
@@ -363,7 +363,7 @@ summary {
 
 
 <h1 class="title toc-ignore">Training XGBoost models in R language</h1>
-<h4 class="author">Tauno Metsalu</h4>
+<h4 class="author">Tauno Metsalu, <a href="https://estanalytics.eu/">EST Analytics OÜ</a></h4>
 <h4 class="date">04.06.2020</h4>
 
 </div>
@@ -403,12 +403,12 @@ mat</code></pre>
 <pre class="r"><code>set.seed(1234)
 model = xgb.cv(data = mat, nrounds = 20, nfold = 10)</code></pre>
 <pre><code>[1] train-rmse:17.258685+0.067965   test-rmse:17.312868+0.771745 
-[2] train-rmse:12.364562+0.047721   test-rmse:12.451517+0.690558 
+[2] train-rmse:12.364562+0.047721   test-rmse:12.451518+0.690558 
 [3] train-rmse:8.938818+0.034563    test-rmse:9.046209+0.653561 
 [4] train-rmse:6.562425+0.027771    test-rmse:6.752577+0.636166 
 [5] train-rmse:4.917745+0.024530    test-rmse:5.240309+0.621111 
 [6] train-rmse:3.773701+0.030847    test-rmse:4.272661+0.568985 
-[7] train-rmse:2.957490+0.025769    test-rmse:3.687902+0.510359 
+[7] train-rmse:2.957490+0.025769    test-rmse:3.687901+0.510359 
 [8] train-rmse:2.385498+0.029178    test-rmse:3.351272+0.479805 
 [9] train-rmse:1.974297+0.040199    test-rmse:3.122832+0.442569 
 [10]    train-rmse:1.679066+0.048552    test-rmse:2.990127+0.445628 
@@ -567,7 +567,7 @@ model2b = xgb.cv(data = mat2b, nrounds = 20, nfold = 10)</code></pre>
 <pre><code>[1] train-rmse:17.269845+0.064330   test-rmse:17.275271+0.718852 
 [2] train-rmse:12.384375+0.049057   test-rmse:12.458473+0.685917 
 [3] train-rmse:8.977683+0.037094    test-rmse:9.100570+0.652570 
-[4] train-rmse:6.624433+0.029517    test-rmse:6.847209+0.647674 
+[4] train-rmse:6.624433+0.029517    test-rmse:6.847210+0.647674 
 [5] train-rmse:4.984804+0.026734    test-rmse:5.329661+0.641351 
 [6] train-rmse:3.842353+0.024640    test-rmse:4.352961+0.619487 
 [7] train-rmse:3.034310+0.038276    test-rmse:3.762825+0.613480 
@@ -614,7 +614,7 @@ mat2c</code></pre>
 <p>Now we have all required levels. But note that the number of features is much higher compared to numeric or binary encoding, and it gets more extreme if we have even more factor levels. On each split, we can only make a decision (0 or 1) on one specific factor level and the depth of the tree is limited. This is hindering the performance of tree-based methods when using one-hot-encoding.</p>
 <pre class="r"><code>set.seed(1234)
 model2c = xgb.cv(data = mat2c, nrounds = 20, nfold = 10)</code></pre>
-<pre><code>[1] train-rmse:17.278048+0.066891   test-rmse:17.279999+0.809984 
+<pre><code>[1] train-rmse:17.278049+0.066892   test-rmse:17.280000+0.809984 
 [2] train-rmse:12.445229+0.047578   test-rmse:12.434403+0.742800 
 [3] train-rmse:9.083367+0.041231    test-rmse:9.112971+0.739142 
 [4] train-rmse:6.726100+0.029661    test-rmse:6.899383+0.717697 
@@ -678,7 +678,7 @@ mat3 = xgb.DMatrix(data = mm3, label = df3$mpg)</code></pre>
 <p>The modelling part is similar like before.</p>
 <pre class="r"><code>set.seed(1234)
 model3 = xgb.cv(data = mat3, nrounds = 20, nfold = 10)</code></pre>
-<pre><code>[1] train-rmse:17.327673+0.064960   test-rmse:17.345471+0.897431 
+<pre><code>[1] train-rmse:17.327674+0.064960   test-rmse:17.345471+0.897431 
 [2] train-rmse:12.482157+0.050652   test-rmse:12.498893+0.786415 
 [3] train-rmse:9.102133+0.038874    test-rmse:9.274033+0.755718 
 [4] train-rmse:6.737899+0.033779    test-rmse:7.085904+0.677934 
@@ -695,8 +695,8 @@ model3 = xgb.cv(data = mat3, nrounds = 20, nfold = 10)</code></pre>
 [15]    train-rmse:1.096057+0.040303    test-rmse:3.552636+0.531630 
 [16]    train-rmse:1.021026+0.037646    test-rmse:3.563759+0.542686 
 [17]    train-rmse:0.951757+0.039133    test-rmse:3.563344+0.529436 
-[18]    train-rmse:0.899711+0.033114    test-rmse:3.565437+0.527313 
-[19]    train-rmse:0.856901+0.031749    test-rmse:3.570360+0.528543 
+[18]    train-rmse:0.899712+0.033114    test-rmse:3.565437+0.527313 
+[19]    train-rmse:0.856901+0.031749    test-rmse:3.570359+0.528543 
 [20]    train-rmse:0.818124+0.019139    test-rmse:3.575723+0.533277 </code></pre>
 <p>In this tutorial, we gave a short introduction how to use XGBoost models in R. We saw that categorical variables need special attention, since xgboost R package has no built-in support for them. In addition, if there are missing values in the dataset, a further na.action parameter needs to be passed.</p>
 <pre class="r"><code>sessionInfo()</code></pre>
